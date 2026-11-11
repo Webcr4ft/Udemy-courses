@@ -1,0 +1,112 @@
+# Message Queues vs. Publish-Subscribe
+
+> **TL;DR:** A **queue** gives each message to **one** receiver. **Pub-Sub** gives each message to **every** subscriber.
+
+---
+
+## The Simple Idea
+
+Both are ways for parts of a system to send messages to each other without calling each other directly. The difference is **who receives each message**.
+
+| | Message Queue | Pub-Sub |
+|---|---|---|
+| **Who gets the message** | One receiver | All subscribers |
+| **Real-life analogy** | Bank line with several tellers. Each customer is served by one teller. | Radio station. It broadcasts once and everyone tuned in hears it. |
+
+---
+
+## Message Queue
+
+Producers put messages in a queue. Consumers take them out in order (first in, first out).
+
+```
+Producer  →  [ M3 | M2 | M1 ]  →  Consumer A  (gets M1)
+                               →  Consumer B  (gets M2)
+```
+
+**How it works**
+- Each message is processed by only one consumer.
+- If a consumer is offline, the message waits in the queue until someone is ready.
+
+**Good**
+- Reliable delivery
+- Keeps order
+- Spreads work across many workers
+
+**Bad**
+- Not made for sending the same message to many receivers
+
+**Used for:** task distribution, background jobs, load balancing
+
+**Example:** 1,000 images need resizing. Put them in a queue and 5 workers share the work, with each image resized once.
+
+---
+
+## Publish-Subscribe (Pub-Sub)
+
+Publishers send messages to a **topic** (a channel). Subscribers listen to the topics they care about.
+
+```
+                       →  Subscriber A  (gets a copy)
+Publisher  →  [Topic]  →  Subscriber B  (gets a copy)
+                       →  Subscriber C  (gets a copy)
+```
+
+**How it works**
+- Every subscriber to that topic gets a copy.
+- Publishers and subscribers don't know about each other.
+
+**Good**
+- One message reaches many receivers
+- Subscribers can be added or removed easily
+
+**Bad**
+- An offline subscriber may miss messages
+- Messages can be duplicated
+- Messages may arrive out of order
+
+**Used for:** real-time notifications, broadcasting, event-driven systems
+
+**Example:** A user places an order. The email service, inventory service, and analytics service all receive the same "order placed" message.
+
+---
+
+## Main Differences
+
+| Aspect | Message Queue | Pub-Sub |
+|---|---|---|
+| **Communication** | Point-to-point | One-to-many or many-to-many |
+| **Delivery** | One consumer per message | Every subscriber gets a copy |
+| **Order** | First in, first out | Not always guaranteed |
+| **Offline receiver** | Message waits | May miss the message (depends on tool) |
+| **Best for** | Sharing work | Telling many parts what happened |
+
+---
+
+## Extra Points to Know
+
+- **They can be combined.** A common setup is Pub-Sub to broadcast an event, with each subscriber having its own queue. Each one gets a copy and processes it at its own speed.
+- **"May miss messages" depends on the tool.** Kafka stores messages so late subscribers can catch up. Simple Pub-Sub tools don't.
+- **Queues can lose order** when several consumers work in parallel, even though they are first in, first out.
+- **Dead Letter Queue (DLQ):** a place for messages that keep failing, so you can inspect them later.
+- **Idempotency:** duplicates can happen in both, so your code should handle the same message twice without harm.
+
+---
+
+## Common Tools
+
+| Type | Tools |
+|---|---|
+| **Queues** | RabbitMQ, AWS SQS |
+| **Pub-Sub** | Google Pub/Sub, AWS SNS |
+| **Both** | Kafka |
+
+---
+
+## When to Use Which
+
+| Situation | Choose |
+|---|---|
+| One job should be done by exactly one worker | **Queue** |
+| Many services need to react to the same event | **Pub-Sub** |
+| Both needs together | **Pub-Sub feeding a queue for each subscriber** |
